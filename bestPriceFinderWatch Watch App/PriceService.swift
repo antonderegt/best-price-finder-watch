@@ -65,13 +65,18 @@ class PriceService {
     }
 
     private func fetchSlots(endpoint: String) async throws -> [PriceSlot] {
-        var components = URLComponents(string: baseURL + endpoint)!
+        guard var components = URLComponents(string: baseURL + endpoint) else {
+            throw AppError.noPricesAvailable
+        }
         components.queryItems = [
             URLQueryItem(name: "token", value: token),
             URLQueryItem(name: "resolution", value: "15"),
             URLQueryItem(name: "price", value: "prijsTI")
         ]
-        let (data, _) = try await URLSession.shared.data(from: components.url!)
+        guard let url = components.url else {
+            throw AppError.noPricesAvailable
+        }
+        let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(APIResponse.self, from: data)
         return response.data.compactMap { entry -> PriceSlot? in
             guard let price = Double(entry.prijsTI) else { return nil }
@@ -91,10 +96,14 @@ private struct APIEntry: Decodable {
     let prijsTI: String
 
     var parsedDate: Date {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
-        return formatter.date(from: datum) ?? Date.distantPast
+        APIEntry.formatter.date(from: datum) ?? Date.distantPast
     }
+
+    private static let formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
+        return f
+    }()
 }
 
 // MARK: - Errors
