@@ -1,0 +1,7 @@
+bestPriceFinderWatch\ Watch\ App/Secrets.swift
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
