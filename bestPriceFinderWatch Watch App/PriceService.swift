@@ -52,7 +52,10 @@ class PriceService {
             slots += tomorrow
         }
 
-        slots = slots.filter { $0.date > now }
+        let calendar = Calendar.current
+        let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: now)!)
+        let tomorrowAt9 = calendar.date(byAdding: .hour, value: 9, to: startOfTomorrow)!
+        slots = slots.filter { $0.date > now && $0.date < tomorrowAt9 }
 
         let profile = cycle.kwhProfile
         let overall = findBestStart(in: slots, profile: profile, window: nil)
@@ -76,8 +79,10 @@ class PriceService {
         guard let url = components.url else {
             throw AppError.noPricesAvailable
         }
+        
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(APIResponse.self, from: data)
+    
         return response.data.compactMap { entry -> PriceSlot? in
             guard let price = Double(entry.prijsTI) else { return nil }
             return PriceSlot(date: entry.parsedDate, pricePerKWh: price)
@@ -95,11 +100,11 @@ private struct APIEntry: Decodable {
     let datum: String
     let prijsTI: String
 
-    var parsedDate: Date {
+    nonisolated var parsedDate: Date {
         APIEntry.formatter.date(from: datum) ?? Date.distantPast
     }
 
-    private static let formatter: ISO8601DateFormatter = {
+    nonisolated(unsafe) private static let formatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
         return f
